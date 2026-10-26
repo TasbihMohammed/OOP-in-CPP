@@ -74,14 +74,23 @@ Complex& operator--(Complex& c)
 Complex operator++(Complex& c, int)
 { 
     Complex temp = c;
-    c.real += 1;
+    ++c;
     return temp;
 }
 Complex operator--(Complex& c, int)
 { 
     Complex temp = c;
-    c.real -= 1;
+    --c;
     return temp;
+}
+
+bool operator==(const Complex& lhs, const Complex& rhs)
+{
+    return (lhs.real == rhs.real) && (lhs.imag == rhs.imag);
+}
+bool operator!=(const Complex& lhs, const Complex& rhs)
+{
+    return !(lhs == rhs);
 }
 
 int main()
@@ -135,8 +144,17 @@ int main()
     cout << "After decrementing x: "<< x.real << " + " << x.imag << "i" << endl;
 
     // Postfix increment and decrement using overloaded operators
-    x++;
-    cout << "After postfix incrementing x: "<< x.real << " + " << x.imag << "i" << endl;
-    x--;
-    cout << "After postfix decrementing x: "<< x.real << " + " << x.imag << "i" << endl;
+    Complex old = x++;
+    cout << "Old real: " << old.real << endl;
+    cout << "New real: " << x.real << endl;
+
+    Complex old2 = x--;
+    cout << "Old real: " << old2.real << endl;
+    cout << "New real: " << x.real << endl;
+
+    // Comparison using overloaded operator
+    cout << "Are x and y equal? " << (x == y ? "Yes" : "No") << endl;
+    cout << "Is x not equal to y? " << (x != y ? "Yes" : "No") << endl;
+    
+    return 0;
 }
