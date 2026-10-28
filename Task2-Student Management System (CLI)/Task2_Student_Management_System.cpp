@@ -3,6 +3,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <iomanip>
 #include <stdexcept>
 
 using namespace std;
@@ -230,3 +231,65 @@ void cmd_create_class(
     cout << "Class created successfully (ID: " << next_id << ").\n";
     next_id++;
 }
+
+ // List students
+void cmd_list_students(const vector<Student>& students) {
+    if (students.empty()) {
+        cout << "No students found.\n";
+        return;
+    }
+
+    cout << "ID    Name           Age   Email\n"
+         << "---   -------------  ----  ---------------\n";
+
+    for (const Student& s : students) {
+        cout << right << setw(4) << s.id << "  "
+             << left << setw(13) << s.name.substr(0, 13)
+             << right << setw(4) << s.age << "   "
+             << s.email << "\n";
+    }
+
+    cout << "Total: " << students.size() << " student(s)\n";
+}
+
+// List instructors
+void cmd_list_instructors(const vector<Instructor>& instructors) {
+    if (instructors.empty()) {
+        cout << "No instructors found.\n";
+        return;
+    }
+
+    cout << "ID    Name              Department          Classes\n"
+         << "---   ---------------   -----------------   -------\n";
+
+    for (const Instructor& i : instructors) {
+        cout << right << setw(4) << i.id << "  "
+             << left << setw(18) << i.name.substr(0, 15)
+             << setw(20) << i.department.substr(0, 17)
+             << right << setw(7) << i.class_count << "\n";
+    }
+
+    cout << "Total: " << instructors.size() << " instructor(s)\n";
+}
+
+// List classes
+void cmd_list_classes(const vector<Class>& classes) {
+    if (classes.empty()) {
+        cout << "No classes found.\n";
+        return;
+    }
+
+    cout << "ID    Class Name         Instructor        Enrolled\n"
+         << "---   ----------------   ---------------   -------\n";
+
+    for (const Class& c : classes) {
+        cout << right << setw(4) << c.id << "  "
+             << left << setw(19) << c.name.substr(0, 16)
+             << setw(17) << c.instructor_name.substr(0, 15)
+             << right << c.enrolled_students.size()
+             << "/" << c.capacity << "\n";
+    }
+
+    cout << "Total: " << classes.size() << " class(es)\n";
+}
+
