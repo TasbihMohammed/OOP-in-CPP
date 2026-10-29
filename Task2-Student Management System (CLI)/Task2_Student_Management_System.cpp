@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
@@ -293,3 +294,266 @@ void cmd_list_classes(const vector<Class>& classes) {
     cout << "Total: " << classes.size() << " class(es)\n";
 }
 
+// Enroll student
+void cmd_enroll(
+    vector<Class>& classes,
+    const vector<Student>& students,
+    const string& arg1,
+    const string& arg2
+) {
+    int student_id, class_id;
+
+    if (!try_parse_int(arg1, student_id) ||
+        !try_parse_int(arg2, class_id) ||
+        student_id <= 0 || class_id <= 0) {
+        cout << "Error: IDs must be positive whole numbers.\n";
+        return;
+    }
+
+    // Find student
+    bool student_found = false;
+    string student_name;
+
+    for (const Student& s : students) {
+        if (s.id == student_id) {
+            student_found = true;
+            student_name = s.name;
+            break;
+        }
+    }
+
+    if (!student_found) {
+        cout << "Error: student not found.\n";
+        return;
+    }
+
+    // Find class
+    for (Class& c : classes) {
+        if (c.id == class_id) {
+
+            // Check if student is already enrolled
+            for (int id : c.enrolled_students) {
+                if (id == student_id) {
+                    cout << "Error: student is already enrolled.\n";
+                    return;
+                }
+            }
+
+            // Check class capacity
+            if (c.enrolled_students.size() >=
+                static_cast<size_t>(c.capacity)) {
+                cout << "Error: class is full.\n";
+                return;
+            }
+
+            // Enroll student
+            c.enrolled_students.push_back(student_id);
+
+            cout << student_name
+                 << " was enrolled in "
+                 << c.name << ".\n";
+            return;
+        }
+    }
+
+    cout << "Error: class not found.\n";
+}
+
+void cmd_show_class(
+    const vector<Class>& classes,
+    const vector<Student>& students,
+    const string& arg
+) {
+    int class_id;
+
+    // Check if the ID is a valid positive integer
+    if (!try_parse_int(arg, class_id) || class_id <= 0) {
+        cout << "Error: ID must be a positive whole number.\n";
+        return;
+    }
+
+    // Search for the class
+    for (const Class& c : classes) {
+        if (c.id == class_id) {
+
+            // Display class information
+            cout << "Class ID    : " << c.id << "\n";
+            cout << "Name        : " << c.name << "\n";
+            cout << "Instructor  : " << c.instructor_name << "\n";
+            cout << "Enrolled    : "
+                 << c.enrolled_students.size()
+                 << "/" << c.capacity << "\n";
+
+            cout << "Students    :\n";
+
+            // Check if the class has no students
+            if (c.enrolled_students.empty()) {
+                cout << "  (no students enrolled)\n";
+            }
+            else {
+                int index = 1;
+
+                // Search for each enrolled student
+                for (int student_id : c.enrolled_students) {
+
+                    for (const Student& s : students) {
+                        if (s.id == student_id) {
+                            cout << "  " << index
+                                 << ". [ID " << s.id << "] "
+                                 << s.name << " - "
+                                 << s.email << "\n";
+
+                            index++;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return;
+        }
+    }
+
+    // Display an error if the class does not exist
+    cout << "Error: class with ID "
+         << class_id << " not found.\n";
+}
+
+void print_welcome() {
+	cout << "==============================================\n";
+	cout << "  Student Management System   (type 'help')\n";
+	cout << "==============================================\n";
+}
+
+vector<string> parse_command(const string& line) {
+	stringstream input(line);
+	vector<string> words;
+	string word;
+	while (input >> word) {
+		words.push_back(to_lower(word));
+	}
+	return words;
+}
+
+bool execute_command(
+    const vector<string>& words,
+    const string& line,
+    vector<Student>& students,
+    vector<Instructor>& instructors,
+    vector<Class>& classes,
+    int& next_student_id,
+    int& next_instructor_id,
+    int& next_class_id
+) {
+    if (words.empty()) {
+        return true;
+    }
+
+    string command = words[0];
+
+    if (command == "help") {
+        cmd_help();
+    }
+    else if (command == "exit" || command == "quit") {
+        cout << "Goodbye!\n";
+        return false;
+    }
+    else if (command == "add" && words.size() >= 2 && words[1] == "student") {
+        cmd_add_student(students, next_student_id);
+    }
+    else if (command == "add" && words.size() >= 2 && words[1] == "instructor") {
+        cmd_add_instructor(instructors, next_instructor_id);
+    }
+    else if (command == "create" && words.size() >= 2 && words[1] == "class") {
+        cmd_create_class(classes, instructors, next_class_id);
+    }
+    else if (command == "list" && words.size() >= 2 && words[1] == "students") {
+        cmd_list_students(students);
+    }
+    else if (command == "list" && words.size() >= 2 && words[1] == "instructors") {
+        cmd_list_instructors(instructors);
+    }
+    else if (command == "list" && words.size() >= 2 && words[1] == "classes") {
+        cmd_list_classes(classes);
+    }
+    else if (command == "enroll") {
+        if (words.size() != 3) {
+            cout << "Usage: enroll <student_id> <class_id>\n";
+        }
+        else {
+            cmd_enroll(classes, students, words[1], words[2]);
+        }
+    }
+    else if (command == "show" && words.size() >= 2 && words[1] == "class") {
+        if (words.size() != 3) {
+            cout << "Usage: show class <class_id>\n";
+        }
+        else {
+            cmd_show_class(classes, students, words[2]);
+        }
+    }
+    else {
+        cout << "Error: unknown command '" << line
+             << "'. Type 'help' to see the available commands.\n";
+    }
+
+    return true;
+}
+
+void run_command_loop(
+    vector<Student>& students,
+    vector<Instructor>& instructors,
+    vector<Class>& classes,
+    int& next_student_id,
+    int& next_instructor_id,
+    int& next_class_id
+) {
+    string line;
+
+    while (true) {
+        cout << "sms> ";
+
+        if (!getline(cin, line)) {
+            break;
+        }
+
+        line = trim(line);
+
+        vector<string> words = parse_command(line);
+
+        bool should_continue = execute_command(
+            words,
+            line,
+            students,
+            instructors,
+            classes,
+            next_student_id,
+            next_instructor_id,
+            next_class_id
+        );
+
+        if (!should_continue) {
+            break;
+        }
+    }
+}
+
+int main() {
+	vector<Student> students;
+	vector<Instructor> instructors;
+	vector<Class> classes;
+	int next_student_id = 1;
+	int next_instructor_id = 1;
+	int next_class_id = 1;
+
+	print_welcome();
+	run_command_loop(
+		students,
+		instructors,
+		classes,
+		next_student_id,
+		next_instructor_id,
+		next_class_id
+	);
+	return 0;
+}
