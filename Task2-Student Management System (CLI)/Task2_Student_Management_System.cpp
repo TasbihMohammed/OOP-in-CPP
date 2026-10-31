@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -18,6 +19,7 @@ string trim(const string& s) {
     size_t end = s.find_last_not_of(" \t");
     return s.substr(start, end - start + 1);
 }
+
 string to_lower(const string& s) {
     string r = s;
 
@@ -28,6 +30,7 @@ string to_lower(const string& s) {
 
     return r;
 }
+
 // Check if string contains only digits
 bool is_integer(const string& s) {
     if (s.empty())
@@ -40,6 +43,7 @@ bool is_integer(const string& s) {
 
     return true;
 }
+
 // Safely convert a numeric string to int
 bool try_parse_int(const string& s, int& value) {
     if (!is_integer(s))
@@ -67,12 +71,14 @@ struct Student {
     int age;
     string email;
 };
+
 struct Instructor {
     int id;
     string name;
     string department;
     int class_count = 0;
 };
+
 struct Class {
     int id;
     string name;
@@ -92,6 +98,10 @@ void cmd_help() {
          << "  list instructors                  List all instructors\n"
          << "  list classes                      List all classes\n"
          << "  enroll <student_id> <class_id>    Enroll a student in a class\n"
+         << "  unenroll <student_id> <class_id>  Remove a student from a class\n"
+         << "  remove student <id>               Remove a student completely\n"
+         << "  search student <text>             Search students by name\n"
+         << "  student classes <student_id>      Show a student's classes\n"
          << "  show class <class_id>             Show one class with its students\n"
          << "  exit                              Quit the program\n";
 }
@@ -175,7 +185,7 @@ void cmd_create_class(
     vector<Class>& classes,
     vector<Instructor>& instructors,
     int& next_id
-) 
+)
 {
     string cname, iname, cap_str;
 
@@ -233,7 +243,7 @@ void cmd_create_class(
     next_id++;
 }
 
- // List students
+// List students
 void cmd_list_students(const vector<Student>& students) {
     if (students.empty()) {
         cout << "No students found.\n";
@@ -359,6 +369,204 @@ void cmd_enroll(
     cout << "Error: class not found.\n";
 }
 
+// Unenroll student from a class
+void cmd_unenroll(
+    vector<Class>& classes,
+    const vector<Student>& students,
+    const string& arg1,
+    const string& arg2
+) {
+    int student_id, class_id;
+
+    if (!try_parse_int(arg1, student_id) ||
+        !try_parse_int(arg2, class_id) ||
+        student_id <= 0 || class_id <= 0) {
+        cout << "Error: IDs must be positive whole numbers.\n";
+        return;
+    }
+
+    // Check if student exists
+    auto student_it = find_if(
+        students.begin(),
+        students.end(),
+        [&](const Student& s) {
+            return s.id == student_id;
+        }
+    );
+
+    if (student_it == students.end()) {
+        cout << "Error: student not found.\n";
+        return;
+    }
+
+    // Find class
+    for (Class& c : classes) {
+        if (c.id == class_id) {
+
+            // Find student in the class
+            auto it = find(
+                c.enrolled_students.begin(),
+                c.enrolled_students.end(),
+                student_id
+            );
+
+            if (it == c.enrolled_students.end()) {
+                cout << "Error: student is not enrolled in this class.\n";
+                return;
+            }
+
+            // Remove student from the class
+            c.enrolled_students.erase(it);
+
+            cout << student_it->name
+                 << " was removed from "
+                 << c.name << ".\n";
+            return;
+        }
+    }
+
+    cout << "Error: class not found.\n";
+}
+
+// Remove student completely
+void cmd_remove_student(
+    vector<Student>& students,
+    vector<Class>& classes,
+    const string& arg
+) {
+    int student_id;
+
+    if (!try_parse_int(arg, student_id) || student_id <= 0) {
+        cout << "Error: ID must be a positive whole number.\n";
+        return;
+    }
+
+    // Find student
+    auto it = find_if(
+        students.begin(),
+        students.end(),
+        [&](const Student& s) {
+            return s.id == student_id;
+        }
+    );
+
+    if (it == students.end()) {
+        cout << "Error: student not found.\n";
+        return;
+    }
+
+    string student_name = it->name;
+
+    // Remove student from every class
+    for (Class& c : classes) {
+        auto& enrolled = c.enrolled_students;
+
+        enrolled.erase(
+            remove(enrolled.begin(), enrolled.end(), student_id),
+            enrolled.end()
+        );
+    }
+
+    // Remove student from the students vector
+    students.erase(it);
+
+    cout << "Student '" << student_name
+         << "' was removed successfully.\n";
+}
+
+// Search students by name (case-insensitive)
+void cmd_search_student(
+    const vector<Student>& students,
+    const string& search_text
+) {
+    string text = trim(search_text);
+
+    if (text.empty()) {
+        cout << "Error: search text must not be empty.\n";
+        return;
+    }
+
+    string search = to_lower(text);
+    int count = 0;
+
+    cout << "Search results:\n";
+
+    for (const Student& s : students) {
+        if (to_lower(s.name).find(search) != string::npos) {
+            cout << "ID: " << s.id
+                 << " | Name: " << s.name
+                 << " | Age: " << s.age
+                 << " | Email: " << s.email << "\n";
+
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        cout << "No students found matching '" << text << "'.\n";
+    }
+    else {
+        cout << "Total: " << count << " student(s) found.\n";
+    }
+}
+
+// Show all classes of a student
+void cmd_student_classes(
+    const vector<Student>& students,
+    const vector<Class>& classes,
+    const string& arg
+) {
+    int student_id;
+
+    if (!try_parse_int(arg, student_id) || student_id <= 0) {
+        cout << "Error: ID must be a positive whole number.\n";
+        return;
+    }
+
+    // Find student
+    auto student_it = find_if(
+        students.begin(),
+        students.end(),
+        [&](const Student& s) {
+            return s.id == student_id;
+        }
+    );
+
+    if (student_it == students.end()) {
+        cout << "Error: student not found.\n";
+        return;
+    }
+
+    cout << "Classes of " << student_it->name
+         << " (ID: " << student_id << "):\n";
+
+    int count = 0;
+
+    // Search for the student's classes
+    for (const Class& c : classes) {
+        auto it = find(
+            c.enrolled_students.begin(),
+            c.enrolled_students.end(),
+            student_id
+        );
+
+        if (it != c.enrolled_students.end()) {
+            cout << "  " << ++count
+                 << ". [ID " << c.id << "] "
+                 << c.name
+                 << " - Instructor: " << c.instructor_name
+                 << "\n";
+        }
+    }
+
+    if (count == 0) {
+        cout << "  (student is not enrolled in any classes)\n";
+    }
+    else {
+        cout << "Total: " << count << " class(es)\n";
+    }
+}
+
 void cmd_show_class(
     const vector<Class>& classes,
     const vector<Student>& students,
@@ -420,19 +628,21 @@ void cmd_show_class(
 }
 
 void print_welcome() {
-	cout << "==============================================\n";
-	cout << "  Student Management System   (type 'help')\n";
-	cout << "==============================================\n";
+    cout << "==============================================\n";
+    cout << "  Student Management System   (type 'help')\n";
+    cout << "==============================================\n";
 }
 
 vector<string> parse_command(const string& line) {
-	stringstream input(line);
-	vector<string> words;
-	string word;
-	while (input >> word) {
-		words.push_back(to_lower(word));
-	}
-	return words;
+    stringstream input(line);
+    vector<string> words;
+    string word;
+
+    while (input >> word) {
+        words.push_back(to_lower(word));
+    }
+
+    return words;
 }
 
 bool execute_command(
@@ -482,6 +692,44 @@ bool execute_command(
         }
         else {
             cmd_enroll(classes, students, words[1], words[2]);
+        }
+    }
+    else if (command == "unenroll") {
+        if (words.size() != 3) {
+            cout << "Usage: unenroll <student_id> <class_id>\n";
+        }
+        else {
+            cmd_unenroll(classes, students, words[1], words[2]);
+        }
+    }
+    else if (command == "remove" && words.size() >= 2 && words[1] == "student") {
+        if (words.size() != 3) {
+            cout << "Usage: remove student <id>\n";
+        }
+        else {
+            cmd_remove_student(students, classes, words[2]);
+        }
+    }
+    else if (command == "search" && words.size() >= 2 && words[1] == "student") {
+        stringstream input(line);
+        string first, second, search_text;
+
+        input >> first >> second;
+        getline(input, search_text);
+
+        if (words.size() < 3) {
+            cout << "Usage: search student <text>\n";
+        }
+        else {
+            cmd_search_student(students, search_text);
+        }
+    }
+    else if (command == "student" && words.size() >= 2 && words[1] == "classes") {
+        if (words.size() != 3) {
+            cout << "Usage: student classes <student_id>\n";
+        }
+        else {
+            cmd_student_classes(students, classes, words[2]);
         }
     }
     else if (command == "show" && words.size() >= 2 && words[1] == "class") {
@@ -538,22 +786,31 @@ void run_command_loop(
     }
 }
 
-int main() {
-	vector<Student> students;
-	vector<Instructor> instructors;
-	vector<Class> classes;
-	int next_student_id = 1;
-	int next_instructor_id = 1;
-	int next_class_id = 1;
+// Bonus features:
+// 1. unenroll <student_id> <class_id>: Removes a student from a class. 
+// 2. remove student <id>: Deletes a student and removes them from all enrolled classes. 
+// 3. search student <text>: Searches student names using case-insensitive matching.
+// 4. student classes <student_id>: Lists all classes a student is enrolled in. 
 
-	print_welcome();
-	run_command_loop(
-		students,
-		instructors,
-		classes,
-		next_student_id,
-		next_instructor_id,
-		next_class_id
-	);
-	return 0;
+int main() {
+    vector<Student> students;
+    vector<Instructor> instructors;
+    vector<Class> classes;
+
+    int next_student_id = 1;
+    int next_instructor_id = 1;
+    int next_class_id = 1;
+
+    print_welcome();
+
+    run_command_loop(
+        students,
+        instructors,
+        classes,
+        next_student_id,
+        next_instructor_id,
+        next_class_id
+    );
+
+    return 0;
 }
